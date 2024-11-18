@@ -1,0 +1,206 @@
+@page "/operations"
+@using WebApi.Client.Dto.OperationDto
+@using WebApi.Client.Services.IServices
+@using MudBlazor;
+@using WebApi.Client.Dto.TypeDtos
+@inject IOperationService OperationService
+@inject ITypeService TypeService
+@inject ILogger<Operations> Logger
+
+<MudCard>
+    <MudCardContent>
+        <MudTable Items="operations" FixedHeader="@fixedHeader" Loading="_loading">
+            <HeaderContent>
+                <MudTh>Description</MudTh>
+                <MudTh>Amount</MudTh>
+                <MudTh>Date</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Income</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd DataLabel="Amount">@context.Amount.ToString("C")</MudTd>
+                <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
+                <MudTd DataLabel="Type">@context.TypeName</MudTd>
+                <MudTd DataLabel="Income">
+                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@((context.IsIncome) ? Color.Success : Color.Error)"/>
+                </MudTd>
+                <MudTd>
+                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                        <MudIconButton OnClick="() => OpenUpdateForm(context)" Icon="@Icons.Material.Filled.Edit" Color="Color.Info" aria-label="edit"></MudIconButton>
+                        <MudIconButton OnClick="() => DeleteOperation(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="delete"></MudIconButton>
+                    </MudButtonGroup>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 20, 50, 100 }"/>
+            </PagerContent>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+<MudButton OnClick="OpenCreateForm" Color="Color.Primary">Create New Operation</MudButton>
+
+@if (isCreateFormVisible)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 10; backdrop-filter: blur(5px);">
+        <MudGrid Class="fade-in-animation" Style="position: absolute; top: 50%; left: 75%; transform: translate(-50%, -50%); z-index: 11;">
+            <MudItem xs="12" sm="7">
+                <MudPaper Class="pa-4">
+                    <MudForm>
+                        <MudText Typo="Typo.h5">Create New Operation</MudText>
+                        <MudTextField @bind-Value="_newOperation.Description" Label="Description" Required="true"/>
+                        <MudTextField @bind-Value="_newOperation.Amount" Label="Amount" Required="true"/>
+                        <MudDatePicker
+                            @bind-Date="_newOperation.Date"
+                            Label="Date"
+                            DateFormat="dd.MM.yyyy"
+                            IconSize="Size.Small"
+                            Required="true"/>
+                        <MudSelect T="int" Label="Select Type" @bind-Value="_newOperation.TypeId" Required="true">
+                            @foreach (var type in types)
+                            {
+                                <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton OnClick="CreateOperation" Color="Color.Primary">Save</MudButton>
+                        <MudButton OnClick="CloseCreateForm" Color="Color.Secondary">Cancel</MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+}
+
+@if (isUpdateFormVisible)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 10; backdrop-filter: blur(5px);">
+        <MudGrid Class="fade-in-animation" Style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 11;">
+            <MudItem xs="12" sm="7">
+                <MudPaper Class="pa-4">
+                    <MudForm>
+                        <MudText Typo="Typo.h5">Update Operation</MudText>
+                        <MudTextField @bind-Value="operation.Description" Label="Description" Required="true"/>
+                        <MudTextField @bind-Value="operation.Amount" Label="Amount" Required="true"/>
+                        <MudDatePicker
+                            @bind-Date="operation.Date"
+                            Label="Date"
+                            DateFormat="dd.MM.yyyy"
+                            IconSize="Size.Small"
+                            Required="true"/>
+                        <MudSelect T="int" Label="Select Type" @bind-Value="operation.TypeId" Required="true">
+                            @foreach (var type in types)
+                            {
+                                <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton OnClick="UpdateOperation" Color="Color.Primary">Save</MudButton>
+                        <MudButton OnClick="CloseUpdateForm" Color="Color.Secondary">Cancel</MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+}
+
+@code {
+    private List<OperationDto> operations = new();
+    private List<TypeDto> types = new();
+    private OperationCreateDto _newOperation = new();
+    private OperationUpdateDto operation = new();
+    private bool _loading = true;
+    private bool fixedHeader = false;
+    private bool isCreateFormVisible = false;
+    private bool isUpdateFormVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOperations();
+        await LoadTypes();
+    }
+    
+    private async Task LoadOperations()
+    {
+        Logger.LogInformation("Loading operations started.");
+        _loading = true;
+
+        try
+        {
+            operations = await OperationService.GetAllAsync();
+            Logger.LogInformation("Successfully loaded {Count} operations.", operations.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "An error occurred while loading operations.");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadTypes()
+    {
+        types = await TypeService.GetTypesAsync();
+    }
+
+    private void OpenCreateForm()
+    {
+        _newOperation = new OperationCreateDto();
+        isCreateFormVisible = true;
+    }
+
+    private void CloseCreateForm()
+    {
+        isCreateFormVisible = false;
+    }
+
+    private async Task CreateOperation()
+    {
+        bool isSuccess = await OperationService.CreateAsync(_newOperation);
+        if (isSuccess)
+        {
+            CloseCreateForm();
+            await LoadOperations();
+        }
+    }
+
+    private void OpenUpdateForm(OperationDto operationDto)
+    {
+        operation = new OperationUpdateDto
+        {
+            Id = operationDto.Id,
+            Description = operationDto.Description,
+            Amount = operationDto.Amount,
+            Date = operationDto.Date,
+            TypeId = operationDto.TypeId
+        };
+        isUpdateFormVisible = true;
+    }
+
+    private void CloseUpdateForm()
+    {
+        isUpdateFormVisible = false;
+    }
+
+    private async Task UpdateOperation()
+    {
+        bool isSuccess = await OperationService.UpdateAsync(operation.Id, operation);
+        if (isSuccess)
+        {
+            CloseUpdateForm();
+            await LoadOperations();
+        }
+    }
+
+    private async Task DeleteOperation(int id)
+    {
+        bool isSuccess = await OperationService.DeleteAsync(id);
+        if (isSuccess)
+        {
+            await LoadOperations();
+        }
+    }
+
+}

@@ -1,0 +1,118 @@
+@page "/report"
+@using WebApi.Client.Dto.OperationDto
+@using WebApi.Client.Services.IServices
+@using MudBlazor
+@inject IReportService ReportService
+@inject ISnackbar Snackbar
+
+<MudCard>
+    <MudCardContent>
+        <MudTabs>
+            <MudTab Label="Daily Report">
+                <MudDatePicker
+                    @bind-Date="_reportDate"
+                    Label="Date"
+                    DateFormat="dd.MM.yyyy"
+                    IconSize="Size.Small"
+                    Required="true"/>
+                <MudButton OnClick="GetDailyReport" Color="Color.Primary">Generate Report</MudButton>
+                @if (_dailyReport != null)
+                {
+                    <MudTable Items="_dailyReport.Operations">
+                        <HeaderContent>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Amount</MudTh>
+                            <MudTh>Date</MudTh>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Income/Expense</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Description">@context.Description</MudTd>
+                            <MudTd DataLabel="Amount">@context.Amount.ToString("C")</MudTd>
+                            <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Type">@context.TypeName</MudTd>
+                            <MudTd DataLabel="Income/Expense">
+                                @if (context.IsIncome)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Success"/>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Error"/>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    <MudText Typo="Typo.h6">Total Income: @_dailyReport.TotalIncome.ToString("C")</MudText>
+                    <MudText Typo="Typo.h6">Total Expenses: @_dailyReport.TotalExpenses.ToString("C")</MudText>
+                }
+            </MudTab>
+            <MudTab Label="Period Report">
+                <MudDateRangePicker StartDate="@_startDate" EndDate="@_endDate" Label="Select Period" Required="true"/>
+                <MudButton OnClick="GetPeriodReport" Color="Color.Primary">Generate Report</MudButton>
+                @if (_periodReport != null)
+                {
+                    <MudTable Items="_periodReport.Operations">
+                        <HeaderContent>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Amount</MudTh>
+                            <MudTh>Date</MudTh>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Income/Expense</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Description">@context.Description</MudTd>
+                            <MudTd DataLabel="Amount">@context.Amount.ToString("C")</MudTd>
+                            <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Type">@context.TypeName</MudTd>
+                            <MudTd DataLabel="Income/Expense">
+                                @if (context.IsIncome)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Success"/>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Error"/>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    <MudText Typo="Typo.h6">Total Income: @_periodReport.TotalIncome.ToString("C")</MudText>
+                    <MudText Typo="Typo.h6">Total Expenses: @_periodReport.TotalExpenses.ToString("C")</MudText>
+                }
+            </MudTab>
+        </MudTabs>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private DateTime? _reportDate = DateTime.Today;
+    private DateTime _startDate = DateTime.Today.AddDays(-7);
+    private DateTime _endDate = DateTime.Today;
+    private ReportDailyDto _dailyReport;
+    private ReportPeriodDto _periodReport;
+
+    private async Task GetDailyReport()
+    {
+        try
+        {
+            _dailyReport = await ReportService.GetDailyReportAsync(_reportDate);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching daily report: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GetPeriodReport()
+    {
+        try
+        {
+            _periodReport = await ReportService.GetPeriodReportAsync(_startDate, _endDate);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching period report: {ex.Message}", Severity.Error);
+        }
+    }
+}

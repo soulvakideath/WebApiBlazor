@@ -1,0 +1,168 @@
+@page "/types"
+@using WebApi.Client.Dto.TypeDtos
+@using WebApi.Client.Services.IServices
+@using MudBlazor
+@inject ITypeService TypeService
+@inject ISnackbar Snackbar
+@inject ILogger<Type> Logger
+
+<MudCard>
+    <MudCardContent>
+        <MudTable Items="types" FixedHeader="@fixedHeader" Loading="@loading">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh>Income</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Title">@context.Name</MudTd>
+                <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd DataLabel="Income">
+                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@(context.IsIncome ? Color.Success : Color.Error)"/>
+                </MudTd>
+                <MudTd>
+                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                        <MudIconButton OnClick="() => OpenUpdateForm(context)" Icon="@Icons.Material.Filled.Edit" Color="Color.Info" aria-label="edit"></MudIconButton>
+                        <MudIconButton OnClick="() => DeleteType(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="delete"></MudIconButton>
+                    </MudButtonGroup>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 20, 50, 100 }"/>
+            </PagerContent>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+<MudButton OnClick="OpenCreateForm" Color="Color.Primary">Create New Type</MudButton>
+
+@if (isCreateFormVisible)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 10; backdrop-filter: blur(5px);">
+        <MudGrid Class="fade-in-animation" Style="position: absolute; top: 50%; left: 75%; transform: translate(-50%, -50%); z-index: 11;">
+            <MudItem xs="12" sm="7">
+                <MudPaper Class="pa-4">
+                    <MudForm Spacing="7">
+                        <MudText Typo="Typo.h5">Create New Type</MudText>
+                        <MudTextField @bind-Value="_newType.Name" Label="Name" Required="true"/>
+                        <MudTextField @bind-Value="_newType.Description" Label="Description" Required="true"/>
+                        <MudSwitch @bind-Value="_newType.IsIncome" Label="Is Income" Required="true"></MudSwitch>
+                        <MudButton OnClick="CreateType" Color="Color.Primary">Save</MudButton>
+                        <MudButton OnClick="CloseCreateForm" Color="Color.Secondary">Cancel</MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+}
+
+@if (isUpdateFormVisible)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5); z-index: 10; backdrop-filter: blur(5px);">
+        <MudGrid Class="fade-in-animation" Style="position: absolute; top: 50%; left: 75%; transform: translate(-50%, -50%); z-index: 11;">
+            <MudItem xs="12" sm="7">
+                <MudPaper Class="pa-4">
+                    <MudForm Spacing="7">
+                        <MudText Typo="Typo.h5">Update Type</MudText>
+                        <MudTextField @bind-Value="type.Name" Label="Name" Required="true"/>
+                        <MudTextField @bind-Value="type.Description" Label="Description" Required="true"/>
+                        <MudSwitch @bind-Value="type.IsIncome" Label="Is Income" Required="true"></MudSwitch>
+                        <MudButton OnClick="UpdateType" Color="Color.Primary">Save</MudButton>
+                        <MudButton OnClick="CloseUpdateForm" Color="Color.Secondary">Cancel</MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+}
+
+@code {
+    private List<TypeDto> types = new();
+    private TypeCreateDto _newType = new();
+    private TypeUpdateDto type = new();
+    private bool loading = true;
+    private bool fixedHeader = false;
+    private bool isCreateFormVisible = false;
+    private bool isUpdateFormVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTypes();
+    }
+
+    private async Task LoadTypes()
+    {
+        Logger.LogInformation("Loading types started."); 
+        loading = true;
+
+        try
+        {
+            types = await TypeService.GetTypesAsync();
+            Logger.LogInformation("Successfully loaded {Count} types.", types.Count); 
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "An error occurred while loading types."); 
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task DeleteType(int id)
+    {
+        bool isSuccess = await TypeService.DeleteTypeAsync(id);
+        if (isSuccess)
+        {
+            await LoadTypes();
+        }
+    }
+
+    private async Task CreateType()
+    {
+        bool isSuccess = await TypeService.CreateTypeAsync(_newType);
+        if (isSuccess)
+        {
+            CloseCreateForm();
+            await LoadTypes();
+        }
+    }
+
+    private async Task UpdateType()
+    {
+        bool isSuccess = await TypeService.UpdateTypeAsync(type.Id, type);
+        if (isSuccess)
+        {
+            CloseUpdateForm();
+            await LoadTypes();
+        }   
+    }
+
+    private void OpenCreateForm()
+    {
+        _newType = new TypeCreateDto(); 
+        isCreateFormVisible = true;
+    }
+
+    private void CloseCreateForm()
+    {
+        isCreateFormVisible = false;
+    }
+
+    private void OpenUpdateForm(TypeDto selectedType)
+    {
+        type.Id = selectedType.Id;
+        type.Name = selectedType.Name;
+        type.Description = selectedType.Description;
+        type.IsIncome = selectedType.IsIncome;
+        isUpdateFormVisible = true;
+    }
+
+    private void CloseUpdateForm()
+    {
+        isUpdateFormVisible = false;
+    }
+
+}
